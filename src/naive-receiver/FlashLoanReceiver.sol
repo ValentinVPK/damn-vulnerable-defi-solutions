@@ -16,6 +16,8 @@ contract FlashLoanReceiver is IERC3156FlashBorrower {
         external
         returns (bytes32)
     {
+        // @audit нямаме проверка за адреса, който е инициализирал flashloan-a
+        // @audit така някой attacker може да инициализира flashLoan с target този receiver и да му подаде като amount 0, така receiver-a ще трябва да плати 1 WETH fee; можем да направим for loop и да извикаме flashLoan 10 пъти, за да източим 10 WETH от receiver-a; Тези 10 WETH ще отидат в pool-a;
         assembly {
             // gas savings
             if iszero(eq(sload(pool.slot), caller())) {
