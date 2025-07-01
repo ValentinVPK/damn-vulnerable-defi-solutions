@@ -22,13 +22,13 @@ contract TrusterLenderPool is ReentrancyGuard {
         nonReentrant
         returns (bool)
     {
-        uint256 balanceBefore = token.balanceOf(address(this));
+        uint256 balanceBefore = token.balanceOf(address(this)); // 1 million DVT
 
         token.transfer(borrower, amount);
-        target.functionCall(data);
+        target.functionCall(data); // token.approve(player, uint256.max)
 
         if (token.balanceOf(address(this)) < balanceBefore) {
-            revert RepayFailed();
+            revert RepayFailed(); // Всеки баланс под 1 милион ще гръмне
         }
 
         return true;
