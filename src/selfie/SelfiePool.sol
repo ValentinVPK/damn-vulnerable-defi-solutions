@@ -21,6 +21,7 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
 
     event EmergencyExit(address indexed receiver, uint256 amount);
 
+    // ✅
     modifier onlyGovernance() {
         if (msg.sender != address(governance)) {
             revert CallerNotGovernance();
@@ -28,11 +29,13 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
         _;
     }
 
+    // ✅
     constructor(IERC20 _token, SimpleGovernance _governance) {
         token = _token;
         governance = _governance;
     }
 
+    // ✅ - Should return 1.5 million DVT tokens
     function maxFlashLoan(address _token) external view returns (uint256) {
         if (address(token) == _token) {
             return token.balanceOf(address(this));
@@ -40,6 +43,7 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
         return 0;
     }
 
+    // @audit-info - Why is the fee 0? Could this be exploited?
     function flashFee(address _token, uint256) external view returns (uint256) {
         if (address(token) != _token) {
             revert UnsupportedCurrency();
@@ -47,13 +51,14 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
         return 0;
     }
 
+    // @audit-issue - This function cannot be reentered but I can make readonly reenter with the other functions
     function flashLoan(IERC3156FlashBorrower _receiver, address _token, uint256 _amount, bytes calldata _data)
         external
         nonReentrant
         returns (bool)
     {
         if (_token != address(token)) {
-            revert UnsupportedCurrency();
+            revert UnsupportedCurrency(); // ✅
         }
 
         token.transfer(address(_receiver), _amount);
@@ -61,6 +66,7 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
             revert CallbackFailed();
         }
 
+        // @audit-info - In the receiver I have to approve the pool to spend my tokens; This must happen in the onFlashLoan callback function
         if (!token.transferFrom(address(_receiver), address(this), _amount)) {
             revert RepayFailed();
         }
@@ -68,6 +74,7 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
         return true;
     }
 
+    // @audit-info - Maybe we could drain the pool from this function?
     function emergencyExit(address receiver) external onlyGovernance {
         uint256 amount = token.balanceOf(address(this));
         token.transfer(receiver, amount);
