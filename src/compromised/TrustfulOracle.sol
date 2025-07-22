@@ -42,7 +42,7 @@ contract TrustfulOracle is AccessControlEnumerable {
         onlyRole(INITIALIZER_ROLE)
     {
         // Only allow one (symbol, price) per source
-        require(sources.length == symbols.length && symbols.length == prices.length);
+        require(sources.length == symbols.length && symbols.length == prices.length); // Тази проверка е окей
         for (uint256 i = 0; i < sources.length;) {
             unchecked {
                 _setPrice(sources[i], symbols[i], prices[i]);
@@ -75,6 +75,8 @@ contract TrustfulOracle is AccessControlEnumerable {
     function getPriceBySource(string memory symbol, address source) public view returns (uint256) {
         return _pricesBySource[source][symbol];
     }
+
+    // ОК!
 
     function _setPrice(address source, string memory symbol, uint256 newPrice) private {
         uint256 oldPrice = _pricesBySource[source][symbol];
