@@ -26,6 +26,10 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
     error TokenNotOffered(uint256 tokenId);
     error InsufficientPayment();
 
+    /**
+     * @dev Creates the NFT marketplace and mints specified amount of NFTs to the deployer
+     * @param amount Number of NFTs to mint on deployment
+     */
     constructor(uint256 amount) payable {
         DamnValuableNFT _token = new DamnValuableNFT();
         _token.renounceOwnership();
@@ -38,6 +42,11 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
         token = _token;
     }
 
+    /**
+     * @dev Allows users to offer multiple NFTs for sale at specified prices
+     * @param tokenIds Array of token IDs to offer
+     * @param prices Array of prices for each token (must match tokenIds length)
+     */
     function offerMany(uint256[] calldata tokenIds, uint256[] calldata prices) external nonReentrant {
         uint256 amount = tokenIds.length;
         if (amount == 0) {
@@ -55,6 +64,11 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
         }
     }
 
+    /**
+     * @dev Private helper that validates ownership/approval and stores offer for a single NFT
+     * @param tokenId The NFT token ID to offer
+     * @param price The price to offer the NFT for
+     */
     function _offerOne(uint256 tokenId, uint256 price) private {
         DamnValuableNFT _token = token; // gas savings
 
@@ -80,6 +94,11 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
         emit NFTOffered(msg.sender, tokenId, price);
     }
 
+    /**
+     * @dev Allows users to buy multiple NFTs with a single transaction
+     * @param tokenIds Array of token IDs to purchase
+     * Note: Uses msg.value to pay for ALL tokens in the array
+     */
     function buyMany(uint256[] calldata tokenIds) external payable nonReentrant {
         for (uint256 i = 0; i < tokenIds.length; ++i) {
             unchecked {
@@ -88,6 +107,11 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
         }
     }
 
+    /**
+     * @dev Private helper that transfers NFT ownership and pays the seller
+     * @param tokenId The NFT token ID to purchase
+     * Transfers NFT to buyer and sends payment to current owner
+     */
     function _buyOne(uint256 tokenId) private {
         uint256 priceToPay = offers[tokenId];
         if (priceToPay == 0) {
@@ -110,5 +134,8 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
         emit NFTBought(msg.sender, tokenId, priceToPay);
     }
 
+    /**
+     * @dev Allows contract to receive ETH payments
+     */
     receive() external payable {}
 }
