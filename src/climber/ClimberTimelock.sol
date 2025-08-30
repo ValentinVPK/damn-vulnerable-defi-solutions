@@ -69,6 +69,13 @@ contract ClimberTimelock is ClimberTimelockBase {
     /**
      * Anyone can execute what's been scheduled via `schedule`
      */
+
+    // Attack Vector:
+    // - Call execute function with the following calls:
+    //   1. target = ClimberTimelock, value = 1 wei, data = updateDelay(0 seconds)
+    //   2. target = ClimberTimelock, value = 1 wei, data = grantRole(PROPOSER_ROLE, attacker)
+    //   3. target = ClimberTimelock, value = 1 wei, data = schedule(previous targets, previous values, previous dataElements)
+    //   4. Attacker is now the admin of the vault and can execute transactions instantly!
     function execute(address[] calldata targets, uint256[] calldata values, bytes[] calldata dataElements, bytes32 salt)
         external
         payable
@@ -91,6 +98,7 @@ contract ClimberTimelock is ClimberTimelockBase {
             targets[i].functionCallWithValue(dataElements[i], values[i]);
         }
 
+        // @audit why is this check after the calls?
         if (getOperationState(id) != OperationState.ReadyForExecution) {
             revert NotReadyForExecution(id);
         }

@@ -16,8 +16,9 @@ import {CallerNotSweeper, InvalidWithdrawalAmount, InvalidWithdrawalTime} from "
  * @dev To be deployed behind a proxy following the UUPS pattern. Upgrades are to be triggered by the owner.
  */
 contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-    uint256 private _lastWithdrawalTimestamp;
-    address private _sweeper;
+    // @audit possible storage collision with the implementation of the proxy
+    uint256 private _lastWithdrawalTimestamp; // slot 0
+    address private _sweeper; // slot 1
 
     modifier onlySweeper() {
         if (msg.sender != _sweeper) {
@@ -31,13 +32,18 @@ contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         _disableInitializers();
     }
 
+    // @audit-info
+    // - Owner of the proxy (ClimberVault) is the ClimberTimelock contract
+    // - Admin of ClimberTimelock is `deployer`
+    // - Proposer of ClimberTimelock is `proposer`
+    // - Sweeper of ClimberVault is `sweeper`
     function initialize(address admin, address proposer, address sweeper) external initializer {
         // Initialize inheritance chain
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
         // Deploy timelock and transfer ownership to it
-        transferOwnership(address(new ClimberTimelock(admin, proposer)));
+        transferOwnership(address(new ClimberTimelock(admin, proposer))); // @audit why are we instantly changing the owner?
 
         _setSweeper(sweeper);
         _updateLastWithdrawalTimestamp(block.timestamp);

