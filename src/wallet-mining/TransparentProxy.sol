@@ -10,7 +10,7 @@ import {AuthorizerUpgradeable} from "./AuthorizerUpgradeable.sol";
  * @notice Transparent proxy with an upgrader role handled by its admin.
  */
 contract TransparentProxy is ERC1967Proxy {
-    address public upgrader = msg.sender;
+    address public upgrader = msg.sender; // @audit-info storage collision with init variable - upgrader address is always address(0) and contract cannot be upgraded
 
     constructor(address _logic, bytes memory _data) ERC1967Proxy(_logic, _data) {
         ERC1967Utils.changeAdmin(msg.sender);
@@ -38,4 +38,6 @@ contract TransparentProxy is ERC1967Proxy {
         (address newImplementation, bytes memory data) = abi.decode(msg.data[4:], (address, bytes));
         ERC1967Utils.upgradeToAndCall(newImplementation, data);
     }
+
+    receive() external payable {}
 }

