@@ -22,6 +22,8 @@ abstract contract AuthorizedExecutor is ReentrancyGuard {
      * @notice Allows first caller to set permissions for a set of action identifiers
      * @param ids array of action identifiers
      */
+    // @audit-issue this could be exploited at initialization, certanly with frontrunning the initialization
+    // @audit-info this only sets the ids but it doesn't check the caller or the target
     function setPermissions(bytes32[] memory ids) external {
         if (initialized) {
             revert AlreadyInitialized();
@@ -43,6 +45,7 @@ abstract contract AuthorizedExecutor is ReentrancyGuard {
      * @param target account where the action will be executed
      * @param actionData abi-encoded calldata to execute on the target
      */
+    // @audit-info this is the function that will be called by the player to call the SelfAuthorizedVault contract
     function execute(address target, bytes calldata actionData) external nonReentrant returns (bytes memory) {
         // Read the 4-bytes selector at the beginning of `actionData`
         bytes4 selector;

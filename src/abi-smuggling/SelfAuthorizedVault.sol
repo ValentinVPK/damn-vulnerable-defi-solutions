@@ -17,6 +17,7 @@ contract SelfAuthorizedVault is AuthorizedExecutor {
     error InvalidWithdrawalAmount();
     error WithdrawalWaitingPeriodNotEnded();
 
+    // @audit-info the caller can only be the contract itself
     modifier onlyThis() {
         if (msg.sender != address(this)) {
             revert CallerNotAllowed();
@@ -44,10 +45,12 @@ contract SelfAuthorizedVault is AuthorizedExecutor {
         SafeTransferLib.safeTransfer(token, recipient, amount);
     }
 
+    // @audit-ok - this will be the function that will solve the challenge probably
     function sweepFunds(address receiver, IERC20 token) external onlyThis {
         SafeTransferLib.safeTransfer(address(token), receiver, token.balanceOf(address(this)));
     }
 
+    // @audit-ok
     function getLastWithdrawalTimestamp() external view returns (uint256) {
         return _lastWithdrawalTimestamp;
     }
