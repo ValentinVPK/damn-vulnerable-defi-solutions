@@ -14,6 +14,10 @@ if ( purchase.timestamp + CANCEL_PERIOD_LENGTH < block.timestamp
 
 - From there we were able to the drain the contract of it’s funds with the following functions: `fill()` uses `mulDivDown` (pay 0 for small amounts) vs `cancel()` uses `mulDivUp` (get refund > 0)
 
+## Resources:
+
+https://rareskills.io/post/erc-1155
+
 ## Solution:
 
 ```solidity
