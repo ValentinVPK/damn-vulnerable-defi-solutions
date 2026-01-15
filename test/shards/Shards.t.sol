@@ -11,6 +11,9 @@ import {
     DamnValuableNFT
 } from "../../src/shards/ShardsNFTMarketplace.sol";
 import {DamnValuableStaking} from "../../src/DamnValuableStaking.sol";
+import {console2} from "forge-std/console2.sol";
+import {AttackShardsNFTMarketplace} from "../../src/shards/solution/AttackShardsNFTMarketplace.sol";
+import {IShardsNFTMarketplace} from "../../src/shards/IShardsNFTMarketplace.sol";
 
 contract ShardsChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -50,6 +53,7 @@ contract ShardsChallenge is Test {
         startHoax(deployer);
 
         // Deploy NFT contract and mint initial supply
+        // Mint 1 NFT to the seller (sold for 1 million) and the rest to the deployer
         nft = new DamnValuableNFT();
         for (uint256 i = 0; i < NFT_SUPPLY; i++) {
             if (i < SELLER_NFT_BALANCE) {
@@ -114,7 +118,9 @@ contract ShardsChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_shards() public checkSolvedByPlayer {
-        
+        AttackShardsNFTMarketplace attackContract =
+            new AttackShardsNFTMarketplace(address(marketplace), address(token), recovery);
+        attackContract.attack();
     }
 
     /**

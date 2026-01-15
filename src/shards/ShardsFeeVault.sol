@@ -10,6 +10,7 @@ import {DamnValuableStaking, DamnValuableToken} from "../DamnValuableStaking.sol
  * @notice  Permissioned vault to deposit fees of the NFT marketpkace.
  *          If a staking contract is set by the owner, the deposited tokens are staked.
  */
+// @audit-ok There is nothing to exploit here
 contract ShardsFeeVault is Initializable, Ownable {
     DamnValuableToken public token;
     DamnValuableStaking public staking;

@@ -166,6 +166,7 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
     /**
      * @notice Allows an oracle account to set a new rate of DVT per USDC
      */
+    // @audit-ok we don't have access to the oracle account
     function setRate(uint256 newRate) external {
         if (msg.sender != oracle) revert NotAllowed();
         if (newRate == 0 || rate == newRate) revert BadRate();
@@ -181,6 +182,7 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
         return _toDVT(fee, _rate);
     }
 
+    // @audit-ok
     function getOffer(uint64 offerId) external view returns (Offer memory) {
         return offers[offerId];
     }
